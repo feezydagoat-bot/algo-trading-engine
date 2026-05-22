@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 import pandas as pd
+from datetime import datetime, timedelta
 load_dotenv()
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
@@ -13,7 +14,6 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 from supabase import create_client
-from datetime import datetime, timedelta
 
 app = FastAPI(title="Algo Trading Engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -33,17 +33,18 @@ class RunRequest(BaseModel):
     params: Optional[Dict[str, Any]] = {}
     dry_run: bool = True
 
-def get_bars(symbols, days=90):
-    start = datetime.now() - timedelta(days=days)
+def get_bars(symbols, days=120):
+    start_dt = datetime.now() - timedelta(days=days)
+    start_str = start_dt.strftime("%Y-%m-%d")
     req = StockBarsRequest(
         symbol_or_symbols=symbols,
         timeframe=TimeFrame.Day,
-        start=start,
+        start=start_str,
         feed="iex"
     )
     bars = data_client.get_stock_bars(req).df
     if bars.empty:
-        return pd.DataFrame(columns=["symbol","timestamp","close"])
+        return pd.DataFrame(columns=["symbol", "timestamp", "close"])
     bars = bars.reset_index()
     bars.columns = [c.lower() for c in bars.columns]
     return bars
@@ -89,15 +90,13 @@ async def run_strategy(req: RunRequest):
     try:
         data = get_bars(req.symbols)
         if data.empty:
-            return {"signals": [], "dry_run": req.dry_run, "portfolio_value": 0, "error": "No market data returned"}
+            return {"signals": [], "dry_run": req.dry_run, "portfolio_value": 0, "error": "No market data"}
         signals = STRATEGIES[req.strategy_name](data, req.params)
         account = trading_client.get_account()
         pv = float(account.portfolio_value or account.cash or 0)
         results = []
         for s in signals:
             sym_data = data[data["symbol"] == s["symbol"]]
-            if sym_data.empty:
-                continue
             price = float(sym_data["close"].iloc[-1])
             qty = round((max(pv, 10000) * 0.05 * s["confidence"]) / price, 2)
             if not req.dry_run and qty > 0:
