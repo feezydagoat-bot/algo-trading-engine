@@ -33,23 +33,32 @@ class RunRequest(BaseModel):
     params: Optional[Dict[str, Any]] = {}
     dry_run: bool = True
 
-def get_bars(symbols, days=60):
+def get_bars(symbols, days=90):
+    start = datetime.now() - timedelta(days=days)
     req = StockBarsRequest(
         symbol_or_symbols=symbols,
         timeframe=TimeFrame.Day,
-        start=datetime.now() - timedelta(days=days)
+        start=start,
+        feed="iex"
     )
-    return data_client.get_stock_bars(req).df.reset_index()
+    bars = data_client.get_stock_bars(req).df
+    if bars.empty:
+        return pd.DataFrame(columns=["symbol","timestamp","close"])
+    bars = bars.reset_index()
+    bars.columns = [c.lower() for c in bars.columns]
+    return bars
 
 def run_macd(data, params):
     signals = []
     fast, slow, sig = params.get("fast", 12), params.get("slow", 26), params.get("signal", 9)
     for symbol in data["symbol"].unique():
-        df = data[data["symbol"] == symbol].sort_values("timestamp")
-        if len(df) < slow + sig:
+        df = data[data["symbol"] == symbol].sort_values("timestamp").reset_index(drop=True)
+        if len(df) < slow + sig + 2:
             continue
-        macd = df["close"].ewm(span=fast).mean() - df["close"].ewm(span=slow).mean()
-        sl = macd.ewm(span=sig).mean()
+        ema_f = df["close"].ewm(span=fast, adjust=False).mean()
+        ema_s = df["close"].ewm(span=slow, adjust=False).mean()
+        macd = ema_f - ema_s
+        sl = macd.ewm(span=sig, adjust=False).mean()
         hist = macd - sl
         if hist.iloc[-1] > 0 and hist.iloc[-2] <= 0:
             signals.append({"symbol": symbol, "side": "buy", "confidence": 0.8})
@@ -61,10 +70,10 @@ def run_momentum(data, params):
     signals = []
     lb, thr = params.get("lookback", 20), params.get("threshold", 0.02)
     for symbol in data["symbol"].unique():
-        df = data[data["symbol"] == symbol].sort_values("timestamp")
-        if len(df) < lb:
+        df = data[data["symbol"] == symbol].sort_values("timestamp").reset_index(drop=True)
+        if len(df) < lb + 1:
             continue
-        ret = df["close"].pct_change(lb).iloc[-1]
+        ret = (df["close"].iloc[-1] - df["close"].iloc[-lb]) / df["close"].iloc[-lb]
         if ret > thr:
             signals.append({"symbol": symbol, "side": "buy", "confidence": min(ret / thr, 1.0)})
         elif ret < -thr:
@@ -79,13 +88,18 @@ async def run_strategy(req: RunRequest):
         raise HTTPException(400, f"Unknown strategy: {req.strategy_name}")
     try:
         data = get_bars(req.symbols)
+        if data.empty:
+            return {"signals": [], "dry_run": req.dry_run, "portfolio_value": 0, "error": "No market data returned"}
         signals = STRATEGIES[req.strategy_name](data, req.params)
         account = trading_client.get_account()
-        pv = float(account.portfolio_value)
+        pv = float(account.portfolio_value or account.cash or 0)
         results = []
         for s in signals:
-            price = float(data[data["symbol"] == s["symbol"]]["close"].iloc[-1])
-            qty = round((pv * 0.05 * s["confidence"]) / price, 2)
+            sym_data = data[data["symbol"] == s["symbol"]]
+            if sym_data.empty:
+                continue
+            price = float(sym_data["close"].iloc[-1])
+            qty = round((max(pv, 10000) * 0.05 * s["confidence"]) / price, 2)
             if not req.dry_run and qty > 0:
                 order = trading_client.submit_order(MarketOrderRequest(
                     symbol=s["symbol"], qty=qty,
