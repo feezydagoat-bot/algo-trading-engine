@@ -12,7 +12,7 @@ on:
       dry_run:
         description: 'Paper mode true/false'
         required: false
-        default: 'true'
+        default: 'false'
 
 jobs:
   run-strategy:
@@ -21,7 +21,7 @@ jobs:
       - name: Run strategy on AAPL and AAL
         run: |
           STRATEGY=${{ github.event.inputs.strategy || 'momentum' }}
-          DRY_RUN=${{ github.event.inputs.dry_run || 'true' }}
+          DRY_RUN=${{ github.event.inputs.dry_run || 'false' }}
           echo "Running $STRATEGY (dry_run=$DRY_RUN)"
           curl -f -X POST "${{ secrets.RAILWAY_URL }}/run-strategy" \
             -H "Content-Type: application/json" \
