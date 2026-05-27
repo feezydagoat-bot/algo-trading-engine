@@ -94,6 +94,16 @@ STRATEGIES = {"macd": run_macd, "momentum": run_momentum}
 
 @app.post("/run-strategy")
 async def run_strategy(req: RunRequest):
+    # Market hours guard — uses Alpaca clock which accounts for all NYSE holidays automatically
+    clock = trading_client.get_clock()
+    if not clock.is_open:
+        return {
+            "skipped": True,
+            "reason": "market_closed",
+            "next_open": clock.next_open.isoformat(),
+            "message": "Strategy aborted — NYSE is not currently open."
+        }
+
     if req.strategy_name not in STRATEGIES:
         raise HTTPException(400, f"Unknown strategy: {req.strategy_name}")
     try:
@@ -136,8 +146,8 @@ async def run_strategy(req: RunRequest):
 
             if should_close:
                 action = {"symbol": symbol, "action": "close", "reason": close_reason,
-                         "qty": qty, "entry": entry_price, "current": current_price,
-                         "pnl_pct": round(pnl_pct * 100, 2)}
+                          "qty": qty, "entry": entry_price, "current": current_price,
+                          "pnl_pct": round(pnl_pct * 100, 2)}
                 if not req.dry_run:
                     trading_client.close_position(symbol)
                     supabase.table("orders").insert({
@@ -146,7 +156,7 @@ async def run_strategy(req: RunRequest):
                     }).execute()
                 actions_taken.append(action)
                 results.append({"symbol": symbol, "side": "sell", "confidence": 1.0,
-                               "qty": qty, "price": current_price, "reason": close_reason})
+                                 "qty": qty, "price": current_price, "reason": close_reason})
 
         for s in signals:
             if s["side"] != "buy":
@@ -163,7 +173,7 @@ async def run_strategy(req: RunRequest):
             if qty <= 0:
                 continue
             action = {"symbol": symbol, "action": "buy", "qty": qty, "price": price,
-                     "confidence": s["confidence"]}
+                      "confidence": s["confidence"]}
             if not req.dry_run:
                 order = trading_client.submit_order(MarketOrderRequest(
                     symbol=symbol, qty=qty,
