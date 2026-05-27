@@ -1,8 +1,9 @@
 name: Run Strategy at Market Open
 
 on:
-  schedule:
-    - cron: '30 13 * * 1-5'
+  # schedule disabled — cron-job.org handles triggering at 9:30am ET (America/New_York)
+  # schedule:
+  #   - cron: '30 13 * * 1-5'
   workflow_dispatch:
     inputs:
       strategy:
