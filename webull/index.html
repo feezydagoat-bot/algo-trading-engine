@@ -19,7 +19,7 @@ select { background: #1f2937; color: #e2e8f0; border: 1px solid #374151; border-
 button.primary { background: #0369a1; border: none; color: white; padding: 12px 20px; font-weight: 600; width: 100%; margin-top: 12px; border-radius: 8px; font-size: 15px; cursor: pointer; }
 button.primary:hover { background: #0284c7; }
 button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.symbol-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 8px; }
+.symbol-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 8px; }h
 .symbol-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: monospace; background: #1f2937; border: 1px solid #374151; color: #9ca3af; cursor: pointer; }
 .symbol-btn.active { background: #0369a1; border-color: #0ea5e9; color: white; }
 .symbol-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -126,7 +126,7 @@ td.sym { font-family: monospace; font-weight: 800; }
   </div>
 </div>
 <script>
-const ENGINE = 'RAILWAY_URL_PLACEHOLDER';
+const ENGINE = 'https://web-production-495a.up.railway.app';
 let selectedSymbols = ['AAPL','AAL'];
 let isLive = false;
 
@@ -304,7 +304,7 @@ td.sym { font-family: monospace; font-weight: 800; }
   </div>
 </div>
 <script>
-const ENGINE = 'RAILWAY_URL_PLACEHOLDER';
+const ENGINE = 'https://web-production-495a.up.railway.app';
 let selectedSymbols = ['AAPL','AAL'];
 let isLive = false;
 function toggleSymbol(btn,sym){btn.classList.toggle('active');selectedSymbols=selectedSymbols.includes(sym)?selectedSymbols.filter(s=>s!==sym):[...selectedSymbols,sym];}
