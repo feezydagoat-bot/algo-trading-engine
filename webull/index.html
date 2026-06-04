@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webull Trading Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #0a0a0f; color: #e2e8f0; min-height: 100vh; }
+header { background: #111827; border-bottom: 1px solid #1f2937; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 20px; font-weight: 700; color: #00c4ff; }
+.badge { background: #064e3b; color: #34d399; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.live { background: #7f1d1d; color: #f87171; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.top-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+.card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+.card h2 { font-size: 13px; color: #9ca3af; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+select { background: #1f2937; color: #e2e8f0; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 100%; margin: 8px 0 16px; }
+button.primary { background: #0369a1; border: none; color: white; padding: 12px 20px; font-weight: 600; width: 100%; margin-top: 12px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+button.primary:hover { background: #0284c7; }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.symbol-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 8px; }
+.symbol-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: monospace; background: #1f2937; border: 1px solid #374151; color: #9ca3af; cursor: pointer; }
+.symbol-btn.active { background: #0369a1; border-color: #0ea5e9; color: white; }
+.symbol-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.symbol-input { background: #1f2937; color: #e2e8f0; border: 1px solid #374151; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: monospace; width: 90px; text-transform: uppercase; }
+.add-btn { background: #1f2937; border: 1px solid #374151; color: #9ca3af; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.add-btn:hover { border-color: #0ea5e9; color: #0ea5e9; }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.toggle { width: 44px; height: 24px; background: #374151; border-radius: 999px; border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: #ef4444; }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.2s; }
+.toggle.on::after { transform: translateX(20px); }
+.signal { display: flex; justify-content: space-between; align-items: center; background: #1f2937; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; gap: 8px; }
+.signal .sym { font-weight: 800; font-family: monospace; font-size: 16px; min-width: 60px; }
+.side { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 800; }
+.side.buy { background: #064e3b; color: #34d399; }
+.side.sell { background: #7f1d1d; color: #f87171; }
+.signal .info { color: #9ca3af; font-size: 13px; }
+.signal .conf { color: #0ea5e9; font-size: 13px; font-weight: 600; }
+.empty { color: #6b7280; text-align: center; padding: 30px 20px; font-size: 14px; line-height: 1.8; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.stat { text-align: center; background: #1f2937; border-radius: 8px; padding: 14px 8px; }
+.stat .value { font-size: 22px; font-weight: 800; color: #0ea5e9; }
+.stat .label { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+#log { background: #0d1117; border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 12px; color: #6b7280; max-height: 100px; overflow-y: auto; line-height: 1.6; }
+.note { font-size: 11px; color: #4b5563; margin-top: 6px; }
+.section-wrap { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.section-wrap h2 { font-size: 13px; color: #9ca3af; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+.refresh-btn { font-size: 11px; color: #6b7280; background: none; border: 1px solid #374151; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.refresh-btn:hover { color: #0ea5e9; border-color: #0ea5e9; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: #6b7280; font-weight: 600; padding: 8px 12px; border-bottom: 1px solid #1f2937; font-size: 11px; text-transform: uppercase; }
+td { padding: 10px 12px; border-bottom: 1px solid #1a2234; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #1a2234; }
+td.sym { font-family: monospace; font-weight: 800; }
+.mode-paper { color: #fbbf24; font-size: 11px; }
+.mode-live { color: #f87171; font-size: 11px; font-weight: 700; }
+.empty-log { color: #4b5563; text-align: center; padding: 30px; font-size: 13px; }
+.pos-card { background: #1f2937; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.pos-sym { font-family: monospace; font-weight: 800; font-size: 16px; }
+.pos-detail { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+.pos-pnl { text-align: right; font-weight: 700; font-size: 15px; }
+.pos-pnl.pos { color: #34d399; }
+.pos-pnl.neg { color: #f87171; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Webull Trading Engine</h1>
+  <span class="badge" id="modeBadge"><span class="status-dot"></span>PAPER ACCOUNT</span>
+</header>
+<div class="container">
+  <div class="top-grid">
+    <div class="card">
+      <h2>Strategy Config</h2>
+      <label style="font-size:13px;color:#9ca3af;">Strategy</label>
+      <select id="strategy">
+        <option value="momentum" selected>Momentum (recommended)</option>
+        <option value="macd">MACD Crossover</option>
+      </select>
+      <label style="font-size:13px;color:#9ca3af;">Symbols</label>
+      <div class="symbol-grid" id="symbolGrid">
+        <button class="symbol-btn active" onclick="toggleSymbol(this,'AAPL')">AAPL</button>
+        <button class="symbol-btn active" onclick="toggleSymbol(this,'AAL')">AAL</button>
+      </div>
+      <div class="symbol-input-row">
+        <input class="symbol-input" id="newSymbol" placeholder="TSLA" maxlength="6"/>
+        <button class="add-btn" onclick="addSymbol()">+ Add</button>
+      </div>
+      <p class="note">yfinance data — any US stock works. No symbol restrictions.</p>
+      <div class="toggle-row">
+        <button class="toggle" id="liveToggle" onclick="toggleLive(this)"></button>
+        <span id="liveLabel" style="font-size:13px;color:#fbbf24;">Paper mode — no real orders</span>
+      </div>
+      <p class="note">Flip to send real orders to Webull paper account.</p>
+      <button class="primary" id="runBtn" onclick="runStrategy()">Run Strategy</button>
+    </div>
+    <div class="card">
+      <h2>Live Signals</h2>
+      <div id="signals"><p class="empty">Hit Run Strategy to generate signals.<br><br>Momentum — 20-day return threshold.<br>MACD — crossover days only.</p></div>
+    </div>
+    <div class="card">
+      <h2>Stats</h2>
+      <div class="stats-grid">
+        <div class="stat"><div class="value" id="portfolioVal">-</div><div class="label">Portfolio</div></div>
+        <div class="stat"><div class="value" id="totalTrades" style="color:#34d399;">0</div><div class="label">Total Trades</div></div>
+        <div class="stat"><div class="value" id="winRate" style="color:#a78bfa;">-</div><div class="label">Win Rate</div></div>
+        <div class="stat"><div class="value" id="totalPnl" style="color:#fbbf24;">-</div><div class="label">Total P&amp;L</div></div>
+      </div>
+      <div id="log">Connecting...</div>
+    </div>
+  </div>
+
+  <div class="section-wrap">
+    <h2>Open Positions <button class="refresh-btn" onclick="loadPositions()">Refresh</button></h2>
+    <div id="positionsTable"><p class="empty-log">Loading positions...</p></div>
+  </div>
+
+  <div class="section-wrap">
+    <h2>Trade Log <button class="refresh-btn" onclick="loadOrders()">Refresh</button></h2>
+    <div id="tradeTable"><p class="empty-log">Loading trade history...</p></div>
+  </div>
+</div>
+<script>
+const ENGINE = 'RAILWAY_URL_PLACEHOLDER';
+let selectedSymbols = ['AAPL','AAL'];
+let isLive = false;
+
+function toggleSymbol(btn, sym) {
+  btn.classList.toggle('active');
+  selectedSymbols = selectedSymbols.includes(sym) ? selectedSymbols.filter(s=>s!==sym) : [...selectedSymbols, sym];
+}
+
+function addSymbol() {
+  const input = document.getElementById('newSymbol');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym || selectedSymbols.includes(sym)) { input.value=''; return; }
+  selectedSymbols.push(sym);
+  const btn = document.createElement('button');
+  btn.className = 'symbol-btn active';
+  btn.textContent = sym;
+  btn.onclick = () => toggleSymbol(btn, sym);
+  document.getElementById('symbolGrid').appendChild(btn);
+  input.value = '';
+}
+
+function toggleLive(btn) {
+  isLive = !isLive;
+  btn.classList.toggle('on', isLive);
+  document.getElementById('liveLabel').textContent = isLive ? 'Live mode - orders sent to Webull paper' : 'Paper mode - no real orders';
+  document.getElementById('liveLabel').style.color = isLive ? '#f87171' : '#fbbf24';
+  const badge = document.getElementById('modeBadge');
+  badge.className = isLive ? 'badge live' : 'badge';
+  badge.innerHTML = isLive ? '<span class="status-dot" style="background:#f87171"></span>LIVE MODE' : '<span class="status-dot"></span>PAPER ACCOUNT';
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString();
+  el.innerHTML += (el.innerHTML?'<br>':'')+'['+t+'] '+msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function loadPositions() {
+  try {
+    const res = await fetch(ENGINE+'/positions?paper='+!isLive);
+    const positions = await res.json();
+    const el = document.getElementById('positionsTable');
+    if (!positions.length) { el.innerHTML='<p class="empty-log">No open positions.</p>'; return; }
+    el.innerHTML = positions.map(p => {
+      const pc = p.pnl>=0?'pos':'neg', ps = p.pnl>=0?'+':'';
+      return '<div class="pos-card"><div><div class="pos-sym">'+p.symbol+'</div><div class="pos-detail">'+Number(p.qty).toFixed(2)+' shares · entry $'+Number(p.entry).toFixed(2)+' · now $'+Number(p.current).toFixed(2)+'</div></div><div class="pos-pnl '+pc+'">'+ps+'$'+Math.abs(p.pnl).toFixed(2)+'<div style="font-size:11px;font-weight:400">'+ps+p.pnl_pct.toFixed(2)+'%</div></div></div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('positionsTable').innerHTML='<p class="empty-log" style="color:#f87171;">'+e.message+'</p>';
+  }
+}
+
+async function loadOrders() {
+  try {
+    const res = await fetch(ENGINE+'/orders');
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webull Trading Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #0a0a0f; color: #e2e8f0; min-height: 100vh; }
+header { background: #111827; border-bottom: 1px solid #1f2937; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 20px; font-weight: 700; color: #00c4ff; }
+.badge { background: #064e3b; color: #34d399; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.live { background: #7f1d1d; color: #f87171; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.top-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+.card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+.card h2 { font-size: 13px; color: #9ca3af; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+select { background: #1f2937; color: #e2e8f0; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 100%; margin: 8px 0 16px; }
+button.primary { background: #0369a1; border: none; color: white; padding: 12px 20px; font-weight: 600; width: 100%; margin-top: 12px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+button.primary:hover { background: #0284c7; }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.symbol-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 8px; }
+.symbol-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: monospace; background: #1f2937; border: 1px solid #374151; color: #9ca3af; cursor: pointer; }
+.symbol-btn.active { background: #0369a1; border-color: #0ea5e9; color: white; }
+.symbol-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.symbol-input { background: #1f2937; color: #e2e8f0; border: 1px solid #374151; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: monospace; width: 90px; text-transform: uppercase; }
+.add-btn { background: #1f2937; border: 1px solid #374151; color: #9ca3af; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.toggle { width: 44px; height: 24px; background: #374151; border-radius: 999px; border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: #ef4444; }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.2s; }
+.toggle.on::after { transform: translateX(20px); }
+.signal { display: flex; justify-content: space-between; align-items: center; background: #1f2937; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; gap: 8px; }
+.signal .sym { font-weight: 800; font-family: monospace; font-size: 16px; min-width: 60px; }
+.side { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 800; }
+.side.buy { background: #064e3b; color: #34d399; }
+.side.sell { background: #7f1d1d; color: #f87171; }
+.empty { color: #6b7280; text-align: center; padding: 30px 20px; font-size: 14px; line-height: 1.8; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.stat { text-align: center; background: #1f2937; border-radius: 8px; padding: 14px 8px; }
+.stat .value { font-size: 22px; font-weight: 800; color: #0ea5e9; }
+.stat .label { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+#log { background: #0d1117; border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 12px; color: #6b7280; max-height: 100px; overflow-y: auto; line-height: 1.6; }
+.note { font-size: 11px; color: #4b5563; margin-top: 6px; }
+.section-wrap { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.section-wrap h2 { font-size: 13px; color: #9ca3af; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+.refresh-btn { font-size: 11px; color: #6b7280; background: none; border: 1px solid #374151; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: #6b7280; font-weight: 600; padding: 8px 12px; border-bottom: 1px solid #1f2937; font-size: 11px; text-transform: uppercase; }
+td { padding: 10px 12px; border-bottom: 1px solid #1a2234; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #1a2234; }
+td.sym { font-family: monospace; font-weight: 800; }
+.mode-paper { color: #fbbf24; font-size: 11px; }
+.mode-live { color: #f87171; font-size: 11px; font-weight: 700; }
+.empty-log { color: #4b5563; text-align: center; padding: 30px; font-size: 13px; }
+.pos-card { background: #1f2937; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.pos-sym { font-family: monospace; font-weight: 800; font-size: 16px; }
+.pos-detail { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+.pos-pnl { text-align: right; font-weight: 700; font-size: 15px; }
+.pos-pnl.pos { color: #34d399; }
+.pos-pnl.neg { color: #f87171; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Webull Trading Engine</h1>
+  <span class="badge" id="modeBadge"><span class="status-dot"></span>PAPER ACCOUNT</span>
+</header>
+<div class="container">
+  <div class="top-grid">
+    <div class="card">
+      <h2>Strategy Config</h2>
+      <label style="font-size:13px;color:#9ca3af;">Strategy</label>
+      <select id="strategy">
+        <option value="momentum" selected>Momentum (recommended)</option>
+        <option value="macd">MACD Crossover</option>
+      </select>
+      <label style="font-size:13px;color:#9ca3af;">Symbols</label>
+      <div class="symbol-grid" id="symbolGrid">
+        <button class="symbol-btn active" onclick="toggleSymbol(this,'AAPL')">AAPL</button>
+        <button class="symbol-btn active" onclick="toggleSymbol(this,'AAL')">AAL</button>
+      </div>
+      <div class="symbol-input-row">
+        <input class="symbol-input" id="newSymbol" placeholder="TSLA" maxlength="6"/>
+        <button class="add-btn" onclick="addSymbol()">+ Add</button>
+      </div>
+      <p class="note">yfinance data - any US stock works. No symbol restrictions.</p>
+      <div class="toggle-row">
+        <button class="toggle" id="liveToggle" onclick="toggleLive(this)"></button>
+        <span id="liveLabel" style="font-size:13px;color:#fbbf24;">Paper mode - no real orders</span>
+      </div>
+      <p class="note">Flip to send real orders to Webull paper account.</p>
+      <button class="primary" id="runBtn" onclick="runStrategy()">Run Strategy</button>
+    </div>
+    <div class="card">
+      <h2>Live Signals</h2>
+      <div id="signals"><p class="empty">Hit Run Strategy to generate signals.</p></div>
+    </div>
+    <div class="card">
+      <h2>Stats</h2>
+      <div class="stats-grid">
+        <div class="stat"><div class="value" id="portfolioVal">-</div><div class="label">Portfolio</div></div>
+        <div class="stat"><div class="value" id="totalTrades" style="color:#34d399;">0</div><div class="label">Total Trades</div></div>
+        <div class="stat"><div class="value" id="winRate" style="color:#a78bfa;">-</div><div class="label">Win Rate</div></div>
+        <div class="stat"><div class="value" id="totalPnl" style="color:#fbbf24;">-</div><div class="label">Total P&amp;L</div></div>
+      </div>
+      <div id="log">Connecting...</div>
+    </div>
+  </div>
+  <div class="section-wrap">
+    <h2>Open Positions <button class="refresh-btn" onclick="loadPositions()">Refresh</button></h2>
+    <div id="positionsTable"><p class="empty-log">Loading positions...</p></div>
+  </div>
+  <div class="section-wrap">
+    <h2>Trade Log <button class="refresh-btn" onclick="loadOrders()">Refresh</button></h2>
+    <div id="tradeTable"><p class="empty-log">Loading trade history...</p></div>
+  </div>
+</div>
+<script>
+const ENGINE = 'RAILWAY_URL_PLACEHOLDER';
+let selectedSymbols = ['AAPL','AAL'];
+let isLive = false;
+function toggleSymbol(btn,sym){btn.classList.toggle('active');selectedSymbols=selectedSymbols.includes(sym)?selectedSymbols.filter(s=>s!==sym):[...selectedSymbols,sym];}
+function addSymbol(){const i=document.getElementById('newSymbol');const sym=i.value.trim().toUpperCase();if(!sym||selectedSymbols.includes(sym)){i.value='';return;}selectedSymbols.push(sym);const b=document.createElement('button');b.className='symbol-btn active';b.textContent=sym;b.onclick=()=>toggleSymbol(b,sym);document.getElementById('symbolGrid').appendChild(b);i.value='';}
+function toggleLive(btn){isLive=!isLive;btn.classList.toggle('on',isLive);document.getElementById('liveLabel').textContent=isLive?'Live mode - orders sent to Webull paper':'Paper mode - no real orders';document.getElementById('liveLabel').style.color=isLive?'#f87171':'#fbbf24';const badge=document.getElementById('modeBadge');badge.className=isLive?'badge live':'badge';badge.innerHTML=isLive?'<span class="status-dot" style="background:#f87171"></span>LIVE MODE':'<span class="status-dot"></span>PAPER ACCOUNT';}
+function log(msg){const el=document.getElementById('log');const t=new Date().toLocaleTimeString();el.innerHTML+=(el.innerHTML?'<br>':'')+'['+t+'] '+msg;el.scrollTop=el.scrollHeight;}
+async function loadPositions(){try{const r=await fetch(ENGINE+'/positions?paper='+!isLive);const ps=await r.json();const el=document.getElementById('positionsTable');if(!ps.length){el.innerHTML='<p class="empty-log">No open positions.</p>';return;}el.innerHTML=ps.map(p=>{const pc=p.pnl>=0?'pos':'neg',ps2=p.pnl>=0?'+':'';return '<div class="pos-card"><div><div class="pos-sym">'+p.symbol+'</div><div class="pos-detail">'+Number(p.qty).toFixed(2)+' shares - entry $'+Number(p.entry).toFixed(2)+' - now $'+Number(p.current).toFixed(2)+'</div></div><div class="pos-pnl '+pc+'">'+ps2+'$'+Math.abs(p.pnl).toFixed(2)+'<div style="font-size:11px;font-weight:400">'+ps2+p.pnl_pct.toFixed(2)+'%</div></div></div>';}).join('');}catch(e){document.getElementById('positionsTable').innerHTML='<p class="empty-log" style="color:#f87171;">'+e.message+'</p>';}}
+async function loadOrders(){try{const r=await fetch(ENGINE+'/orders');const orders=await r.json();if(!Array.isArray(orders))throw new Error('unexpected');document.getElementById('totalTrades').textContent=orders.length;const el=document.getElementById('tradeTable');if(!orders.length){el.innerHTML='<p class="empty-log">No trades yet.</p>';return;}const rows=orders.map(o=>{const qty=Number(o.qty||0).toFixed(2),price=Number(o.filled_price||0).toFixed(2),val=(Number(o.qty||0)*Number(o.filled_price||0)).toFixed(0),time=o.created_at?new Date(o.created_at).toLocaleString():'-';return '<tr><td class="sym">'+(o.symbol||'')+'</td><td><span class="side '+(o.side||'')+'">'+(o.side||'').toUpperCase()+'</span></td><td>'+qty+' sh</td><td>$'+price+'</td><td>$'+val+'</td><td class="'+(o.mode==='live'?'mode-live':'mode-paper')+'">'+(o.mode||'paper').toUpperCase()+'</td><td style="color:#6b7280;font-size:12px;">'+(o.strategy||'').toUpperCase()+'</td><td style="color:#4b5563;font-size:11px;">'+time+'</td></tr>';}).join('');el.innerHTML='<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Value</th><th>Mode</th><th>Strategy</th><th>Time</th></tr></thead><tbody>'+rows+'</tbody></table>';}catch(e){document.getElementById('tradeTable').innerHTML='<p class="empty-log" style="color:#f87171;">'+e.message+'</p>';}}
+async function runStrategy(){const btn=document.getElementById('runBtn');const strategy=document.getElementById('strategy').value;if(!selectedSymbols.length){alert('Select at least one symbol');return;}btn.disabled=true;btn.textContent='Running...';log('Running '+strategy.toUpperCase()+' on '+selectedSymbols.join(', '));try{const r=await fetch(ENGINE+'/run-strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategy_name:strategy,symbols:selectedSymbols,params:{},dry_run:!isLive,paper:!isLive})});const data=await r.json();if(data.detail)throw new Error(data.detail);if(data.skipped){log('Market closed. Next: '+new Date(data.next_open).toLocaleString());document.getElementById('signals').innerHTML='<p class="empty">Market closed. Next: '+new Date(data.next_open).toLocaleString()+'</p>';btn.disabled=false;btn.textContent='Run Strategy';return;}const pv=data.portfolio_value||0;document.getElementById('portfolioVal').textContent=pv>0?'$'+pv.toLocaleString(undefined,{maximumFractionDigits:0}):'$0';const sigEl=document.getElementById('signals');if(!data.signals||!data.signals.length){sigEl.innerHTML='<p class="empty">No new signals.</p>';log('No new signals.');}else{sigEl.innerHTML=data.signals.map(s=>'<div class="signal"><span class="sym">'+s.symbol+'</span><span class="side '+s.side+'">'+s.side.toUpperCase()+'</span><span style="color:#9ca3af;font-size:13px">'+s.qty+' @ $'+Number(s.price).toFixed(2)+'</span><span style="color:#0ea5e9;font-size:13px;font-weight:600">'+(s.confidence*100).toFixed(0)+'%</span></div>').join('');log(data.signals.length+' signal(s)');}loadPositions();if(isLive)setTimeout(loadOrders,2000);}catch(e){log('Error: '+e.message);document.getElementById('signals').innerHTML='<p class="empty" style="color:#f87171;">Error: '+e.message+'</p>';}btn.disabled=false;btn.textContent='Run Strategy';}
+fetch(ENGINE+'/health').then(r=>r.json()).then(d=>{document.getElementById('log').innerHTML='';log('Engine online ('+d.broker+')');}).catch(()=>log('Engine unreachable - check Railway'));
+loadPositions();loadOrders();
+</script>
+</body>
+</html>
