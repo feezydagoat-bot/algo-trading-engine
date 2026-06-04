@@ -94,7 +94,6 @@ STRATEGIES = {"macd": run_macd, "momentum": run_momentum}
 
 @app.post("/run-strategy")
 async def run_strategy(req: RunRequest):
-    # Market hours guard — uses Alpaca clock which accounts for all NYSE holidays automatically
     clock = trading_client.get_clock()
     if not clock.is_open:
         return {
@@ -103,22 +102,18 @@ async def run_strategy(req: RunRequest):
             "next_open": clock.next_open.isoformat(),
             "message": "Strategy aborted — NYSE is not currently open."
         }
-
     if req.strategy_name not in STRATEGIES:
         raise HTTPException(400, f"Unknown strategy: {req.strategy_name}")
     try:
         data = get_bars(req.symbols)
         if data.empty:
             return {"signals": [], "dry_run": req.dry_run, "portfolio_value": 0, "actions": []}
-
         signals = STRATEGIES[req.strategy_name](data, req.params)
         positions = get_positions()
         account = trading_client.get_account()
         pv = float(account.portfolio_value or account.cash or 0)
-
         results = []
         actions_taken = []
-
         for symbol, pos in positions.items():
             if symbol not in req.symbols:
                 continue
@@ -128,10 +123,8 @@ async def run_strategy(req: RunRequest):
             entry_price = float(pos.avg_entry_price)
             pnl_pct = (current_price - entry_price) / entry_price
             qty = float(pos.qty)
-
             should_close = False
             close_reason = ""
-
             if pnl_pct >= TAKE_PROFIT_PCT:
                 should_close = True
                 close_reason = f"take profit +{pnl_pct*100:.1f}%"
@@ -143,7 +136,6 @@ async def run_strategy(req: RunRequest):
                 if sell_signal:
                     should_close = True
                     close_reason = "strategy sell signal"
-
             if should_close:
                 action = {"symbol": symbol, "action": "close", "reason": close_reason,
                           "qty": qty, "entry": entry_price, "current": current_price,
@@ -152,18 +144,18 @@ async def run_strategy(req: RunRequest):
                     trading_client.close_position(symbol)
                     supabase.table("orders").insert({
                         "symbol": symbol, "qty": qty, "side": "sell",
-                        "status": "closed", "filled_price": current_price
+                        "status": "closed", "filled_price": current_price,
+                        "strategy": req.strategy_name, "mode": "paper",
+                        "created_at": datetime.now().isoformat()
                     }).execute()
                 actions_taken.append(action)
                 results.append({"symbol": symbol, "side": "sell", "confidence": 1.0,
                                  "qty": qty, "price": current_price, "reason": close_reason})
-
         for s in signals:
             if s["side"] != "buy":
                 continue
             symbol = s["symbol"]
             if symbol in positions:
-                results.append({**s, "qty": 0, "price": 0, "reason": "already holding position — skipped"})
                 continue
             sym_data = data[data["symbol"] == symbol]
             if sym_data.empty:
@@ -182,18 +174,15 @@ async def run_strategy(req: RunRequest):
                 ))
                 supabase.table("orders").insert({
                     "symbol": symbol, "qty": qty, "side": "buy",
-                    "status": "submitted", "alpaca_order_id": str(order.id)
+                    "status": "submitted", "alpaca_order_id": str(order.id),
+                    "filled_price": price, "strategy": req.strategy_name,
+                    "mode": "paper", "created_at": datetime.now().isoformat()
                 }).execute()
             actions_taken.append(action)
             results.append({**s, "qty": qty, "price": price, "reason": "new position opened"})
-
-        return {
-            "signals": results,
-            "actions": actions_taken,
-            "positions_held": list(positions.keys()),
-            "dry_run": req.dry_run,
-            "portfolio_value": pv
-        }
+        return {"signals": results, "actions": actions_taken,
+                "positions_held": list(positions.keys()),
+                "dry_run": req.dry_run, "portfolio_value": pv}
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -204,6 +193,13 @@ async def get_open_positions():
         return [{"symbol": p.symbol, "qty": p.qty, "entry": p.avg_entry_price,
                  "current": p.current_price, "pnl": p.unrealized_pl,
                  "pnl_pct": p.unrealized_plpc} for p in positions]
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/orders")
+async def get_orders():
+    try:
+        return supabase.table("orders").select("*").order("created_at", desc=True).limit(100).execute().data
     except Exception as e:
         raise HTTPException(500, str(e))
 
