@@ -19,7 +19,7 @@ WEBULL_REFRESH_TOKEN = os.getenv("WEBULL_REFRESH_TOKEN")
 WEBULL_TOKEN_EXPIRY  = os.getenv("WEBULL_TOKEN_EXPIRY")
 WEBULL_UUID          = os.getenv("WEBULL_UUID")
 WEBULL_TRADE_TOKEN   = os.getenv("WEBULL_TRADE_TOKEN")
-SUPABASE_URL         = os.getenv("SUPABASE_URL")h
+SUPABASE_URL         = os.getenv("SUPABASE_URL")
 SUPABASE_KEY         = os.getenv("SUPABASE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
