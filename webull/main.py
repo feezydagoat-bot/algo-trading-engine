@@ -50,9 +50,9 @@ def get_bars(symbols, days=120):
             df = yf.download(sym, start=start, auto_adjust=True, progress=False)
             if df.empty:
                 raise ValueError("empty")
-        # yfinance >=0.2.x returns MultiIndex columns ("Close","AAPL") for single tickers
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+            # yfinance >=0.2.x returns MultiIndex columns ("Close","AAPL") for single tickers
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
             df = df.reset_index()[["Date", "Close"]].rename(columns={"Date": "timestamp", "Close": "close"})
             df["symbol"] = sym
             frames.append(df)
